@@ -319,9 +319,16 @@ local function stopFlying()
     end
 end
 
--- Toggle fly with "V" key
-UserInputService.InputBegan:Connect(function(input)
+-- Toggle fly with "V" key, but only if the player is not typing in chat
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    -- Check if the chat bar is active
+    if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode.V then
+        -- Prevent fly toggle if the player is typing in chat
+        if player.PlayerGui:FindFirstChild("Chat") and player.PlayerGui.Chat.Enabled then
+            return
+        end
+
         flying = not flying
         if flying then
             startFlying()
