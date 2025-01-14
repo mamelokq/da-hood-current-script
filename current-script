@@ -1,0 +1,340 @@
+--chatspy
+enabled = true --chat "/spy" to toggle!
+spyOnMyself = true --if true will check your messages too
+public = false --if true will chat the logs publicly (fun, risky)
+publicItalics = true --if true will use /me to stand out
+privateProperties = { --customize private logs
+	Color = Color3.fromRGB(0,255,255); 
+	Font = Enum.Font.SourceSansBold;
+	TextSize = 18;
+}
+ 
+
+local StarterGui = game:GetService("StarterGui")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait() or Players.LocalPlayer
+local saymsg = game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents"):WaitForChild("SayMessageRequest")
+local getmsg = game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents"):WaitForChild("OnMessageDoneFiltering")
+local instance = (_G.chatSpyInstance or 0) + 1
+_G.chatSpyInstance = instance
+ 
+local function onChatted(p,msg)
+	if _G.chatSpyInstance == instance then
+		if p==player and msg:lower():sub(1,4)=="/spy" then
+			enabled = not enabled
+			wait(0.3)
+			privateProperties.Text = "{SPY "..(enabled and "EN" or "DIS").."ABLED}"
+			StarterGui:SetCore("ChatMakeSystemMessage",privateProperties)
+		elseif enabled and (spyOnMyself==true or p~=player) then
+			msg = msg:gsub("[\n\r]",''):gsub("\t",' '):gsub("[ ]+",' ')
+			local hidden = true
+			local conn = getmsg.OnClientEvent:Connect(function(packet,channel)
+				if packet.SpeakerUserId==p.UserId and packet.Message==msg:sub(#msg-#packet.Message+1) and (channel=="All" or (channel=="Team" and public==false and Players[packet.FromSpeaker].Team==player.Team)) then
+					hidden = false
+				end
+			end)
+			wait(1)
+			conn:Disconnect()
+			if hidden and enabled then
+				if public then
+					saymsg:FireServer((publicItalics and "/me " or '').."{SPY} [".. p.Name .."]: "..msg,"All")
+				else
+					privateProperties.Text = "{SPY} [".. p.Name .."]: "..msg
+					StarterGui:SetCore("ChatMakeSystemMessage",privateProperties)
+				end
+			end
+		end
+	end
+end
+ 
+for _,p in ipairs(Players:GetPlayers()) do
+	p.Chatted:Connect(function(msg) onChatted(p,msg) end)
+end
+Players.PlayerAdded:Connect(function(p)
+	p.Chatted:Connect(function(msg) onChatted(p,msg) end)
+end)
+privateProperties.Text = "{SPY "..(enabled and "EN" or "DIS").."ABLED}"
+StarterGui:SetCore("ChatMakeSystemMessage",privateProperties)
+if not player.PlayerGui:FindFirstChild("Chat") then wait(3) end
+local chatFrame = player.PlayerGui.Chat.Frame
+chatFrame.ChatChannelParentFrame.Visible = true
+chatFrame.ChatBarParentFrame.Position = chatFrame.ChatChannelParentFrame.Position+UDim2.new(UDim.new(),chatFrame.ChatChannelParentFrame.Size.Y)
+--chatspy
+------------------------------------------------------------------------------------------
+
+--esp
+-- Settings
+local EspNames = true  -- Toggle for ESP
+
+-- Function to handle ESP Names
+local function espNames(player, character)
+    local humanoid = character:WaitForChild("Humanoid")
+    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+    local textLabel = Drawing.new("Text")
+    textLabel.Visible = false
+    textLabel.Center = true
+    textLabel.Outline = true
+    textLabel.Font = 2
+    textLabel.Color = Color3.fromRGB(255, 255, 255)
+    textLabel.Size = 13
+
+    local connections = {}
+
+    local function cleanup()
+        textLabel.Visible = false
+        textLabel:Remove()
+        for _, connection in ipairs(connections) do
+            connection:Disconnect()
+        end
+        connections = {}
+    end
+
+    table.insert(connections, character.AncestryChanged:Connect(function(_, parent)
+        if not parent then
+            cleanup()
+        end
+    end))
+
+    table.insert(connections, humanoid.HealthChanged:Connect(function(health)
+        if health <= 0 or humanoid:GetState() == Enum.HumanoidStateType.Dead then
+            cleanup()
+        end
+    end))
+
+    table.insert(connections, game:GetService("RunService").RenderStepped:Connect(function()
+        if EspNames then
+            local hrpPosition, onScreen = workspace.CurrentCamera:WorldToViewportPoint(humanoidRootPart.Position)
+            if onScreen then
+                textLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y)
+                textLabel.Text = player.Name
+                textLabel.Visible = true
+            else
+                textLabel.Visible = false
+            end
+        else
+            textLabel.Visible = false
+        end
+    end))
+end
+
+local function playerAdded(player)
+    player.CharacterAdded:Connect(function(character)
+        espNames(player, character)
+    end)
+    
+    if player.Character then
+        espNames(player, player.Character)
+    end
+end
+
+-- Connect to existing players
+for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+    if player ~= game:GetService("Players").LocalPlayer then
+        playerAdded(player)
+    end
+end
+
+-- Connect to new players
+game:GetService("Players").PlayerAdded:Connect(playerAdded)
+--esp
+
+-------------------------------------------------------------------------------------------
+
+--cam lock
+local UIS = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local Camera = game:GetService("Workspace").CurrentCamera
+local localPlayer = Players.LocalPlayer
+local mouse = localPlayer:GetMouse()
+
+local aimbotEnabled = false  -- Set to true if you want the aimbot to be enabled initially
+local predictionMultiplier = 0.13 --Prediction multiplier for velocity-based prediction
+local lockedPlayer = nil  -- The player the camera is locked onto
+
+-- Function to find the nearest player to the mouse cursor
+local function GetNearestPlayerToMouse()
+    local nearestPlayer = nil
+    local shortestDistance = math.huge
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            -- Get the screen position of the player's HumanoidRootPart
+            local playerPart = player.Character.HumanoidRootPart
+            local screenPosition, onScreen = Camera:WorldToScreenPoint(playerPart.Position)
+            
+            if onScreen then
+                -- Calculate the distance from the mouse to the player's part
+                local mousePos = Vector2.new(mouse.X, mouse.Y)
+                local playerPos = Vector2.new(screenPosition.X, screenPosition.Y)
+                local distance = (mousePos - playerPos).Magnitude
+                
+                -- Find the closest player to the mouse
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    nearestPlayer = player
+                end
+            end
+        end
+    end
+    return nearestPlayer
+end
+
+-- Function to toggle aimbot on/off
+local function ToggleAimbot()
+    aimbotEnabled = not aimbotEnabled
+end
+
+-- Function to predict the player's future position based on their velocity
+local function PredictPlayerPosition(player)
+    if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local playerPart = player.Character.HumanoidRootPart
+        local velocity = player.Character:FindFirstChild("Humanoid") and player.Character.HumanoidRootPart.AssemblyLinearVelocity or Vector3.new(0, 0, 0)
+        
+        -- Predict the position using the velocity and the prediction multiplier
+        local predictedPosition = playerPart.Position + velocity * predictionMultiplier
+        return predictedPosition
+    end
+    return nil
+end
+
+-- Function to update camera orientation to aim at the predicted position
+local function AimAtPredictedPosition(predictedPosition)
+    local cameraPos = Camera.CFrame.Position
+    local direction = (predictedPosition - cameraPos).unit
+    
+    -- Update the camera's orientation
+    Camera.CFrame = CFrame.new(cameraPos, cameraPos + direction)
+end
+
+-- Function to toggle lock on a player and enable sticky aim
+local function ToggleLockOn()
+    if lockedPlayer then
+        -- Unlock the camera if a player is already locked
+        lockedPlayer = nil
+        aimbotEnabled = false
+    else
+        -- Lock onto the closest player in view
+        lockedPlayer = GetNearestPlayerToMouse()
+        aimbotEnabled = true
+    end
+end
+
+-- Listen for the "C" key press to toggle the lock on and off
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.C then
+        ToggleLockOn()
+    end
+end)
+
+-- Main loop that runs every frame
+game:GetService("RunService").RenderStepped:Connect(function()
+    if aimbotEnabled and lockedPlayer then
+        local player = lockedPlayer
+        if player then
+            local predictedPosition = PredictPlayerPosition(player)
+            if predictedPosition then
+                AimAtPredictedPosition(predictedPosition)
+            end
+        end
+    end
+end)
+
+-- cam lock
+
+-------------------------------------------------------------------------------------------------------------------
+
+
+-- speed
+
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local player = game.Players.LocalPlayer
+local speedEnabled = false
+local SpeedValue = 2
+
+-- Function to toggle speed with 'T' key
+local function onInputBegan(input, isProcessed)
+    if isProcessed then return end
+    if input.KeyCode == Enum.KeyCode.T then
+        speedEnabled = not speedEnabled
+    end
+end
+
+UserInputService.InputBegan:Connect(onInputBegan)
+
+-- Update speed on heartbeat
+RunService.Heartbeat:Connect(function()
+    if speedEnabled then
+        player.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame + player.Character.Humanoid.MoveDirection * SpeedValue
+    end
+end)
+-- speed
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+--fly
+local player = game.Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local FlySpeed = 500 -- Adjust the speed as needed
+local FlyLoop
+local flying = false
+
+local function startFlying()
+    if not FlyLoop then
+        FlyLoop = RunService.Stepped:Connect(function()
+            spawn(function()
+                pcall(function()
+                    local speed = FlySpeed
+                    local velocity = Vector3.new(0, 1, 0)
+
+                    if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                        velocity = velocity + (workspace.CurrentCamera.CFrame.LookVector * speed)
+                    end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                        velocity = velocity + (workspace.CurrentCamera.CFrame.RightVector * -speed)
+                    end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                        velocity = velocity + (workspace.CurrentCamera.CFrame.LookVector * -speed)
+                    end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                        velocity = velocity + (workspace.CurrentCamera.CFrame.RightVector * speed)
+                    end
+
+                    player.Character.HumanoidRootPart.Velocity = velocity
+                    player.Character.Humanoid:ChangeState("Freefall")
+                end)
+            end)
+        end)
+    end
+end
+
+local function stopFlying()
+    if FlyLoop then
+        FlyLoop:Disconnect()
+        FlyLoop = nil
+        player.Character.Humanoid:ChangeState("Landing")
+    end
+end
+
+-- Toggle fly with "V" key
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.V then
+        flying = not flying
+        if flying then
+            startFlying()
+        else
+            stopFlying()
+        end
+    end
+end)
+
+-- Return functions to control flying
+return {
+    StartFlying = startFlying,
+    StopFlying = stopFlying
+}
+--fly
+-------------------------------------------------------------------------------------------------------------------
