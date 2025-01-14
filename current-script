@@ -142,18 +142,6 @@ game:GetService("Players").PlayerAdded:Connect(playerAdded)
 -------------------------------------------------------------------------------------------
 
 --cam lock
-local function callback(Text)
-end
- 
-local NotificationBindable = Instance.new("BindableFunction")
-NotificationBindable.OnInvoke = callback
- 
-game.StarterGui:SetCore("SendNotification", {
-    Title = "Lock";
-    Text = "Lock toggle is c";
-    Duration = "5";
-    Callback = NotificationBindable;
-})
 getgenv().OldAimPart = "HumanoidRootPart"
 getgenv().AimPart = "HumanoidRootPart" -- For R15 Games: {UpperTorso, LowerTorso, HumanoidRootPart, Head} | For R6 Games: {Head, Torso, HumanoidRootPart}  
     getgenv().AimlockKey = "c"
@@ -402,16 +390,9 @@ local function stopFlying()
     end
 end
 
--- Toggle fly with "V" key, but only if the player is not typing in chat
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    -- Check if the chat bar is active
-    if gameProcessed then return end
+-- Toggle fly with "V" key
+UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.V then
-        -- Prevent fly toggle if the player is typing in chat
-        if player.PlayerGui:FindFirstChild("Chat") and player.PlayerGui.Chat.Enabled then
-            return
-        end
-
         flying = not flying
         if flying then
             startFlying()
