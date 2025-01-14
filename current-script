@@ -149,7 +149,7 @@ local localPlayer = Players.LocalPlayer
 local mouse = localPlayer:GetMouse()
 
 local aimbotEnabled = false  -- Set to true if you want the aimbot to be enabled initially
-local predictionMultiplier = 0.13 --Prediction multiplier for velocity-based prediction
+local predictionMultiplier = 0.1 --Prediction multiplier for velocity-based prediction
 local lockedPlayer = nil  -- The player the camera is locked onto
 
 -- Function to find the nearest player to the mouse cursor
