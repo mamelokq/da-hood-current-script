@@ -145,7 +145,7 @@ game:GetService("Players").PlayerAdded:Connect(playerAdded)
 getgenv().OldAimPart = "HumanoidRootPart"
 getgenv().AimPart = "HumanoidRootPart" -- For R15 Games: {UpperTorso, LowerTorso, HumanoidRootPart, Head} | For R6 Games: {Head, Torso, HumanoidRootPart}  
     getgenv().AimlockKey = "c"
-    getgenv().AimRadius = 50 -- How far away from someones character you want to lock on at
+    getgenv().AimRadius = 999 -- How far away from someones character you want to lock on at
     getgenv().ThirdPerson = true 
     getgenv().FirstPerson = true
     getgenv().TeamCheck = false -- Check if Target is on your Team (True means it wont lock onto your teamates, false is vice versa) (Set it to false if there are no teams)
@@ -323,7 +323,7 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local player = game.Players.LocalPlayer
 local speedEnabled = false
-local SpeedValue = 2
+local SpeedValue = 4
 
 -- Function to toggle speed with 'T' key
 local function onInputBegan(input, isProcessed)
