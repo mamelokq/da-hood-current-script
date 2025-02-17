@@ -1,0 +1,107 @@
+local player = game.Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local FlySpeed = 500 -- Adjust speed as needed
+local FlyLoop
+local flying = false
+local bodyVelocity
+local bodyGyro
+
+-- Function to check if the player is typing (in chat or text box)
+local function isTyping()
+    return UserInputService:GetFocusedTextBox() ~= nil
+end
+
+local function startFlying()
+    if FlyLoop then return end -- Prevent multiple loops
+
+    local character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+
+    local humanoidRootPart = character.HumanoidRootPart
+    local humanoid = character:FindFirstChild("Humanoid")
+
+    -- Apply BodyVelocity to counteract gravity
+    bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0) -- Start still
+    bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge) -- Infinite force
+    bodyVelocity.Parent = humanoidRootPart
+
+    -- Apply BodyGyro to prevent spinning
+    bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.CFrame = humanoidRootPart.CFrame -- Lock rotation
+    bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge) -- Allow full control
+    bodyGyro.D = 10 -- Damping to smooth movement
+    bodyGyro.Parent = humanoidRootPart
+
+    humanoid:ChangeState(Enum.HumanoidStateType.PlatformStanding) -- Lock to platform standing
+
+    FlyLoop = RunService.Stepped:Connect(function()
+        spawn(function()
+            pcall(function()
+                local speed = FlySpeed
+                local velocity = Vector3.new(0, 0, 0)  -- No downward movement
+
+                if not isTyping() then
+                    if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                        velocity = velocity + (workspace.CurrentCamera.CFrame.LookVector * speed)
+                    end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                        velocity = velocity + (workspace.CurrentCamera.CFrame.RightVector * -speed)
+                    end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                        velocity = velocity + (workspace.CurrentCamera.CFrame.LookVector * -speed)
+                    end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                        velocity = velocity + (workspace.CurrentCamera.CFrame.RightVector * speed)
+                    end
+                end
+
+                -- Update BodyVelocity instead of setting HumanoidRootPart.Velocity
+                bodyVelocity.Velocity = velocity
+                bodyGyro.CFrame = workspace.CurrentCamera.CFrame.Rotation -- Maintain rotation
+            end)
+        end)
+    end)
+end
+
+local function stopFlying()
+    if FlyLoop then
+        FlyLoop:Disconnect()
+        FlyLoop = nil
+    end
+
+    if bodyVelocity then
+        bodyVelocity:Destroy() -- Remove anti-gravity
+        bodyVelocity = nil
+    end
+
+    if bodyGyro then
+        bodyGyro:Destroy() -- Remove rotation lock
+        bodyGyro = nil
+    end
+
+    local character = player.Character
+    if character and character:FindFirstChild("Humanoid") then
+        local humanoid = character.Humanoid
+        humanoid:ChangeState(Enum.HumanoidStateType.Freefall) -- Resume normal gravity
+    end
+end
+
+-- Toggle flying with "V" key, only if not typing
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.V and not isTyping() then
+        flying = not flying
+        if flying then
+            startFlying()
+        else
+            stopFlying()
+        end
+    end
+end)
+
+-- Return functions to control flying
+return {
+    StartFlying = startFlying,
+    StopFlying = stopFlying
+}
